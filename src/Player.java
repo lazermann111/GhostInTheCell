@@ -31,8 +31,8 @@ class Player {
 
         // game loop
         while (true) {
-                List<Troops> troops = new ArrayList<>();
-                List<Factory> factories = new ArrayList<>();
+            List<Troops> troops = new ArrayList<>();
+            List<Factory> factories = new ArrayList<>();
 
             int entityCount = scanner.nextInt(); // the number of entities (e.g. factories and troops)
             for (int i = 0; i < entityCount; i++) {
@@ -58,19 +58,15 @@ class Player {
 // Example: MOVE 2 4 12 will send 12 cyborgs from factory 2 to factory 4.
 
             Factory myStrongest = Helper.strongestFactory(factories, OwnerType.ME);
-            Factory neutralToAttack = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.NEUTRAL, 3);
+            Factory neutralToAttack = Helper.nearestFactories(factories, factoryRoutes, myStrongest.id, OwnerType.NEUTRAL, 1, 600).stream().findFirst().orElse(null);
+            Factory enemy = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.OPPONENT, 0);
             if (neutralToAttack != null) {
                 System.out.printf("MOVE %d %d %d%n", myStrongest.id, neutralToAttack.id, neutralToAttack.troopsCount + 1);
+            } else if (enemy != null) {
+                System.out.printf("MOVE %d %d %d%n", myStrongest.id, enemy.id, enemy.troopsCount + 1);
             } else {
-                Factory enemy = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.OPPONENT, 0);
-                if (enemy != null) {
-                    System.out.printf("MOVE %d %d %d%n", myStrongest.id, enemy.id, enemy.troopsCount + 1);
-                }
+                System.out.println("WAIT");
             }
-
-
-            // Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
-            System.out.println("WAIT");
         }
     }
 
@@ -230,7 +226,8 @@ class Player {
         }
 
         /**
-         *  find Nearest Factory For specific Owner type  And MinProduction For Factory With  originId
+         * find Nearest Factory For specific Owner type  And MinProduction For Factory With  originId
+         *
          * @param factories
          * @param distances
          * @param originId
@@ -255,19 +252,18 @@ class Player {
                     .filter(f -> distanceToFactory(distances, originId, f.id) != -1)
                     .filter(f -> f.production >= minProduction)
                     .filter(f -> f.troopsCount <= maxCyborgs)
-                    .sorted(Comparator.comparingInt(a -> distanceToFactory(distances, originId, a.id)))
-
+                    .sorted(Comparator.comparingInt(a -> distanceToFactory(distances, originId, a.id) - a.production)) // 5 0 , 5 3 -> 5-3
                     .collect(Collectors.toList());
             System.err.println(" NearestFactories for origin " + originId + "  is " + res);
             return res;
         }
-        public static List<Factory> allFactoriesFor(List<Factory> factories , OwnerType owner) {
+
+        public static List<Factory> allFactoriesFor(List<Factory> factories, OwnerType owner) {
             return factories
                     .stream()
                     .filter(factory -> factory.owner == owner)
                     .collect(Collectors.toList());
         }
-
 
 
         public static List<Troops> incomingTroops(List<Troops> troops, int destinationId, OwnerType ownerType) {
