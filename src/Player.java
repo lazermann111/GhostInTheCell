@@ -1,7 +1,11 @@
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -27,10 +31,13 @@ class Player {
 
         // game loop
         while (true) {
-
+                List<Troops> troops = new ArrayList<>();
+                List<Factory> factories = new ArrayList<>();
 
             int entityCount = scanner.nextInt(); // the number of entities (e.g. factories and troops)
             for (int i = 0; i < entityCount; i++) {
+
+
                 int entityId = scanner.nextInt();
                 String entityType = scanner.next();
                 int arg1 = scanner.nextInt();
@@ -40,17 +47,26 @@ class Player {
                 int arg5 = scanner.nextInt();
 
                 if (Objects.equals(entityType, "TROOP")) {
-                    entities.add(new Troops(entityId, arg4, Owner.fromInt(arg1), arg2, arg3, arg5));
-                }
-
-                else if (Objects.equals(entityType, "FACTORY")) {
-                    entities.add(new Factory(entityId, arg2, Owner.fromInt(arg1), arg3));
+                    troops.add(new Troops(entityId, arg4, OwnerType.fromInt(arg1), arg2, arg3, arg5));
+                } else if (Objects.equals(entityType, "FACTORY")) {
+                    factories.add(new Factory(entityId, arg2, OwnerType.fromInt(arg1), arg3));
                 }
 
             }
+//MOVE source destination cyborgCount: creates a troop of cyborgCount cyborgs
+// at the factory source and sends that troop towards destination.
+// Example: MOVE 2 4 12 will send 12 cyborgs from factory 2 to factory 4.
 
-            // Write an action using System.out.println()
-            // To debug: System.err.println("Debug messages...");
+            Factory myStrongest = Helper.strongestFactory(factories, OwnerType.ME);
+            Factory neutralToAttack = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.NEUTRAL, 3);
+            if (neutralToAttack != null) {
+                System.out.printf("MOVE %d %d %d%n", myStrongest.id, neutralToAttack.id, neutralToAttack.troopsCount + 1);
+            } else {
+                Factory enemy = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.OPPONENT, 0);
+                if (enemy != null) {
+                    System.out.printf("MOVE %d %d %d%n", myStrongest.id, enemy.id, enemy.troopsCount + 1);
+                }
+            }
 
 
             // Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
@@ -59,16 +75,16 @@ class Player {
     }
 
 
-    enum Owner {
+    enum OwnerType {
         ME(1),
         OPPONENT(-1),
         NEUTRAL(0);
 
-        Owner(int code) {
+        OwnerType(int code) {
             this.code = code;
         }
 
-        static Owner fromInt(int value) {
+        static OwnerType fromInt(int value) {
             switch (value) {
                 case -1:
                     return OPPONENT;
@@ -88,9 +104,9 @@ class Player {
     static abstract class GameEntity {
         protected int id;
         protected int troopsCount;
-        protected Owner owner;
+        protected OwnerType owner;
 
-        public GameEntity(int id, int troopsCount, Owner owner) {
+        public GameEntity(int id, int troopsCount, OwnerType owner) {
             this.id = id;
             this.troopsCount = troopsCount;
             this.owner = owner;
@@ -112,11 +128,11 @@ class Player {
             this.troopsCount = troopsCount;
         }
 
-        public Owner getOwner() {
+        public OwnerType getOwner() {
             return owner;
         }
 
-        public void setOwner(Owner owner) {
+        public void setOwner(OwnerType owner) {
             this.owner = owner;
         }
 
@@ -125,7 +141,7 @@ class Player {
     static class Factory extends GameEntity {
         private int production;
 
-        public Factory(int id, int troopsCount, Owner owner, int production) {
+        public Factory(int id, int troopsCount, OwnerType owner, int production) {
             super(id, troopsCount, owner);
             this.production = production;
 
@@ -155,7 +171,7 @@ class Player {
         private int destinationId;
         private int arrivingIn;
 
-        public Troops(int id, int troopsCount, Owner owner, int sourceId, int destinationId, int arrivingIn) {
+        public Troops(int id, int troopsCount, OwnerType owner, int sourceId, int destinationId, int arrivingIn) {
             super(id, troopsCount, owner);
             this.sourceId = sourceId;
             this.destinationId = destinationId;
@@ -199,6 +215,78 @@ class Player {
             this.sourceId = sourceId;
             this.destinationId = destinationId;
             this.distance = distance;
+        }
+    }
+
+    static class Helper {
+        public static Factory strongestFactory(List<Factory> factories, OwnerType owner) {
+            Factory res = factories.stream()
+                    .filter(f -> f.owner == owner)
+                    .sorted(Comparator.comparingInt(a -> -a.troopsCount))
+                    .findFirst()
+                    .get();
+            System.err.println(" StongestFactory " + res);
+            return res;
+        }
+
+        /**
+         *  find Nearest Factory For specific Owner type  And MinProduction For Factory With  originId
+         * @param factories
+         * @param distances
+         * @param originId
+         * @param ownerType
+         * @param minProduction
+         * @return
+         */
+        public static Factory nearestFactory(List<Factory> factories, List<FactoryRoute> distances, int originId, OwnerType ownerType, int minProduction) {
+            Optional<Factory> a = factories.stream()
+                    .filter(f -> f.owner == ownerType)
+                    .filter(f -> distanceToFactory(distances, originId, f.id) != -1)
+                    .filter(f -> f.production >= minProduction)
+                    .min(Comparator.comparingInt(b -> distanceToFactory(distances, originId, b.id)));
+            a.ifPresent(factory -> System.err.println(" NearestFactory for origin " + originId + "  is " + factory));
+            return a.orElse(null);
+        }
+
+        public static List<Factory> nearestFactories(List<Factory> factories, List<FactoryRoute> distances, int originId, OwnerType ownerType,
+                                                     int minProduction, int maxCyborgs) {
+            List<Factory> res = factories.stream()
+                    .filter(f -> f.owner == ownerType)
+                    .filter(f -> distanceToFactory(distances, originId, f.id) != -1)
+                    .filter(f -> f.production >= minProduction)
+                    .filter(f -> f.troopsCount <= maxCyborgs)
+                    .sorted(Comparator.comparingInt(a -> distanceToFactory(distances, originId, a.id)))
+
+                    .collect(Collectors.toList());
+            System.err.println(" NearestFactories for origin " + originId + "  is " + res);
+            return res;
+        }
+        public static List<Factory> allFactoriesFor(List<Factory> factories , OwnerType owner) {
+            return factories
+                    .stream()
+                    .filter(factory -> factory.owner == owner)
+                    .collect(Collectors.toList());
+        }
+
+
+
+        public static List<Troops> incomingTroops(List<Troops> troops, int destinationId, OwnerType ownerType) {
+            List<Troops> res = troops.stream()
+                    .filter(f -> f.owner == ownerType)
+                    .filter(f -> f.destinationId >= destinationId)
+                    .collect(Collectors.toList());
+            System.err.println(" IncomingTroops for destination " + destinationId + "  is " + res);
+            return res;
+        }
+
+        public static int distanceToFactory(List<FactoryRoute> distances, float factory1Id, float factory2Id) {
+            for (FactoryRoute d : distances) {
+                if ((d.destinationId == factory1Id && d.sourceId == factory2Id) || (d.sourceId == factory1Id && d.destinationId == factory2Id)) {
+                    return (int) d.distance;
+                }
+            }
+
+            return -1;
         }
     }
 }
