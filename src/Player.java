@@ -56,17 +56,20 @@ class Player {
 //MOVE source destination cyborgCount: creates a troop of cyborgCount cyborgs
 // at the factory source and sends that troop towards destination.
 // Example: MOVE 2 4 12 will send 12 cyborgs from factory 2 to factory 4.
+            oneMoveAtTickStrategy(factories);
+        }
+    }
 
-            Factory myStrongest = Helper.strongestFactory(factories, OwnerType.ME);
-            Factory neutralToAttack = Helper.nearestFactories(factories, factoryRoutes, myStrongest.id, OwnerType.NEUTRAL, 1, 600).stream().findFirst().orElse(null);
-            Factory enemy = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.OPPONENT, 0);
-            if (neutralToAttack != null) {
-                System.out.printf("MOVE %d %d %d%n", myStrongest.id, neutralToAttack.id, neutralToAttack.troopsCount + 1);
-            } else if (enemy != null) {
-                System.out.printf("MOVE %d %d %d%n", myStrongest.id, enemy.id, enemy.troopsCount + 1);
-            } else {
-                System.out.println("WAIT");
-            }
+    private static void oneMoveAtTickStrategy (List<Factory> factories) {
+        Factory myStrongest = Helper.strongestFactory(factories, OwnerType.ME);
+        Factory neutralToAttack = Helper.nearestFactories(factories, factoryRoutes, myStrongest.id, OwnerType.NEUTRAL, 1, 600).stream().findFirst().orElse(null);
+        Factory enemy = Helper.nearestFactory(factories, factoryRoutes, myStrongest.id, OwnerType.OPPONENT, 0);
+        if (neutralToAttack != null) {
+            System.out.printf("MOVE %d %d %d%n", myStrongest.id, neutralToAttack.id, neutralToAttack.troopsCount + 1);
+        } else if (enemy != null) {
+            System.out.printf("MOVE %d %d %d%n", myStrongest.id, enemy.id, enemy.troopsCount + 1);
+        } else {
+            System.out.println("WAIT");
         }
     }
 
