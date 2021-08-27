@@ -1,3 +1,5 @@
+
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -10,9 +12,8 @@ import java.util.Scanner;
 class Player {
 
     static List<FactoryRoute> factoryRoutes = new LinkedList<>();
-    static List<GameEntity> entities = new LinkedList<>();
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         int factoryCount = scanner.nextInt(); // the number of factories
         int linkCount = scanner.nextInt(); // the number of links between factories
@@ -28,7 +29,9 @@ class Player {
         // game loop
         while (true) {
 
-
+            List<Factory> factories = new LinkedList<>();
+            List<Troop> troops = new LinkedList<>();
+            List<Factory> emptyFactories = new LinkedList<>();
             int entityCount = scanner.nextInt(); // the number of entities (e.g. factories and troops)
             for (int i = 0; i < entityCount; i++) {
                 int entityId = scanner.nextInt();
@@ -40,21 +43,27 @@ class Player {
                 int arg5 = scanner.nextInt();
 
                 if (Objects.equals(entityType, "TROOP")) {
-                    entities.add(new Troops(entityId, arg4, Owner.fromInt(arg1), arg2, arg3, arg5));
+                    troops.add(new Troop(entityId, arg4, Owner.fromInt(arg1), arg2, arg3, arg5));
                 }
 
                 else if (Objects.equals(entityType, "FACTORY")) {
-                    entities.add(new Factory(entityId, arg2, Owner.fromInt(arg1), arg3));
+                    factories.add(new Factory(entityId, arg2, Owner.fromInt(arg1), arg3));
                 }
-
             }
-
-            // Write an action using System.out.println()
-            // To debug: System.err.println("Debug messages...");
-
-
-            // Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
-            System.out.println("WAIT");
+            for (Factory factory : factories) {
+                if(factory.getOwner() != Owner.NEUTRAL) continue;
+                emptyFactories.add(factory);
+            }
+            Factory factoryToAttack = GameEntity.calculateBestNeutralFactoryToAttack(emptyFactories);
+            List<Factory> myFactories = new LinkedList<>();
+            for (Factory factory : factories) {
+                if(factory.owner==Owner.ME){
+                    myFactories.add(factory);
+                }
+            }
+            for (Factory myFactory : myFactories) {
+               System.out.println("MOVE "+myFactory.id+" "+factoryToAttack.id+" "+factoryToAttack.troopsCount/myFactories.size());
+            }
         }
     }
 
@@ -69,16 +78,12 @@ class Player {
         }
 
         static Owner fromInt(int value) {
-            switch (value) {
-                case -1:
-                    return OPPONENT;
-                case 1:
-                    return ME;
-                case 0:
-                    return NEUTRAL;
-                default:
-                    throw new IllegalArgumentException("No such owner type!");
-            }
+            return switch (value) {
+                case -1 -> OPPONENT;
+                case 1 -> ME;
+                case 0 -> NEUTRAL;
+                default -> throw new IllegalArgumentException("No such owner type!");
+            };
         }
 
         private int code;
@@ -96,98 +101,75 @@ class Player {
             this.owner = owner;
         }
 
-        public int getId() {
-            return id;
-        }
-
-        public void setId(int id) {
-            this.id = id;
-        }
-
-        public int getTroopsCount() {
-            return troopsCount;
-        }
-
-        public void setTroopsCount(int troopsCount) {
-            this.troopsCount = troopsCount;
-        }
-
         public Owner getOwner() {
             return owner;
         }
 
-        public void setOwner(Owner owner) {
-            this.owner = owner;
+        static public Factory calculateBestNeutralFactoryToAttack(List<Factory> factories){
+            int bestFactoryToAttack = 0;
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==3&&factory.troopsCount <=5){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==3){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==2&&factory.troopsCount <=5){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==2){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==1&&factory.troopsCount <=5){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==1){
+                    return factory;
+                }
+            }
+            for ( Factory factory : factories) {
+                if(factory.getProduction()==0){
+                    return factory;
+                }
+            }
+            return factories.get(bestFactoryToAttack);//plug, unreachable code, all possible situations described in prev.code
         }
-
     }
-
     static class Factory extends GameEntity {
         private int production;
 
         public Factory(int id, int troopsCount, Owner owner, int production) {
             super(id, troopsCount, owner);
             this.production = production;
-
         }
 
         public int getProduction() {
             return production;
         }
-
-        public void setProduction(int production) {
-            this.production = production;
-        }
-
-        @Override
-        public String toString() {
-            return "Factory{" +
-                    "id=" + id +
-                    ", troopsCount=" + troopsCount +
-                    ", owner=" + owner +
-                    ", production=" + production +
-                    '}';
-        }
     }
 
-    static class Troops extends GameEntity {
+    static class Troop extends GameEntity {
         private int sourceId;
         private int destinationId;
         private int arrivingIn;
 
-        public Troops(int id, int troopsCount, Owner owner, int sourceId, int destinationId, int arrivingIn) {
+        public Troop(int id, int troopsCount, Owner owner, int sourceId, int destinationId, int arrivingIn) {
             super(id, troopsCount, owner);
             this.sourceId = sourceId;
             this.destinationId = destinationId;
             this.arrivingIn = arrivingIn;
         }
 
-        public int getSourceId() {
-            return sourceId;
-        }
-
-        public void setSourceId(int sourceId) {
-            this.sourceId = sourceId;
-        }
-
-        public int getDestinationId() {
-            return destinationId;
-        }
-
-        public void setDestinationId(int destinationId) {
-            this.destinationId = destinationId;
-        }
-
-        @Override
-        public String toString() {
-            return "Troops{" +
-                    "id=" + id +
-                    ", troopsCount=" + troopsCount +
-                    ", owner=" + owner +
-                    ", sourceId=" + sourceId +
-                    ", destinationId=" + destinationId +
-                    '}';
-        }
     }
 
     static class FactoryRoute {
